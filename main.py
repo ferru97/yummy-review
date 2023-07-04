@@ -63,8 +63,6 @@ def run(restaurantsDataset, maxReviews):
                 reviewsData = reviewsData + reviewsList
             except:
                 logging.warning(f"{index+1}/{restaurant.size} Error while processing restaurant [{restaurantName}]!")
-        if index > 1:
-            break
     
     revireCsvData = [data.getCsvRecord() for data in reviewsData]
     saveRestaurantData(restaurantData, revireCsvData, "tripadvisor")
