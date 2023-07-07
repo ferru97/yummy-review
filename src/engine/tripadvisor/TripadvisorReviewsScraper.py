@@ -4,7 +4,7 @@ from src.model.Author import Author
 from selenium.webdriver.common.by import By
 from src.engine.tripadvisor.TripadvisorAuthorScraper import getAuthorObj
 import time
-from pprint import pprint  
+import logging
 
 DEFAULT_EMPTY = "--"
 TAGS_TEXT_SEPARATOR = " "
@@ -12,27 +12,33 @@ TAGS_TEXT_SEPARATOR = " "
 def _expandReviews(chrome):
     spans = chrome.find_elements(By.TAG_NAME, 'span')
     spansMore = [span for span in spans if span.get_attribute("onclick") == "widgetEvCall('handlers.clickExpand',event,this);"]
-    spansMore[0].click()
+    if len(spansMore) > 0:
+        spansMore[0].click()
 
 def _selectAllLanguages(chrome):  
     divs = chrome.find_elements(By.TAG_NAME, 'label')
     allLanguageButton = [div for div in divs if div.get_attribute("for") == "filters_detail_language_filterLang_ALL"]
-    allLanguageButton[0].click() 
+    if len(allLanguageButton) > 0:
+        allLanguageButton[0].click() 
 
-def _nextReviewPage(chrome, pageNumber):
-    url = chrome.current_url
-    newReviewStart = pageNumber * 15
-    if pageNumber == 1:
-        newUrl = url.replace("-Reviews-", "-Reviews-or"+str(newReviewStart)+"-")
-    else:
-        oldReviewStart = (pageNumber-1) * 15
-        newUrl = url.replace("-or"+str(oldReviewStart), "-or"+str(newReviewStart))
-    chrome.get(newUrl)
+def _nextReviewPage(chrome):
+    nextButtonClass = "nav next ui_button primary"
+    nextButton = chrome.find_elements(By.XPATH, f"//a[@class='{nextButtonClass}']")[0]
+    lastPage = "disabled" in nextButton.get_attribute("class")
+    
+    chrome.execute_script("document.getElementsByClassName('nav next ui_button primary')[0].click()")
+    time.sleep(0.2)
+    chrome.get(chrome.current_url)
     time.sleep(1.5)
-    if "-or"+str(newReviewStart) in chrome.current_url:
-        return True
-    else:
-        return False     
+    
+    return lastPage  
+
+def _goToReviewPage(chrome, pageNum):
+    while pageNum != 0:
+        chrome.execute_script(f"document.querySelector(\"a[class='nav next ui_button primary']\").click()")
+        time.sleep(0.6)
+        pageNum -= 1
+
 
 def _getReviewTime(soup):
     try:
@@ -119,8 +125,12 @@ def _getReviewReply(soup):
     
 def _getReviewReviews(soup):
     try:
-        reviewerReviews = soup.find("div", {"class" : "memberBadging g10n is-shown-at-tablet"})
-        return reviewerReviews.getText(separator=TAGS_TEXT_SEPARATOR).replace('\n', '')
+        reviewerReviews = soup.find("div", {"class" : "reviewerBadge badge"})
+        if reviewerReviews is not None:
+            return reviewerReviews.getText(separator=TAGS_TEXT_SEPARATOR).replace('\n', '')
+        else:
+            reviewerReviews = soup.find("span", {"class" : "badgetext"})
+            return reviewerReviews.getText(separator=TAGS_TEXT_SEPARATOR).replace('\n', '')
     except:
         return DEFAULT_EMPTY      
 
@@ -130,7 +140,7 @@ def _getReviewAuthor(soup, chrome):
     except:
         return Author()                             
 
-def _scrapeReview(reviewSoup, chrome):
+def _scrapeReview(reviewSoup, chrome, pageNumber):
     review = Review()
     review.title = _getReviewTime(reviewSoup)
     review.ratingDate = _getReviewRatingDate(reviewSoup)
@@ -144,21 +154,28 @@ def _scrapeReview(reviewSoup, chrome):
     review.reply = _getReviewReply(reviewSoup)
     review.reviewerReviews = _getReviewReviews(reviewSoup)
     review.setAuthor(_getReviewAuthor(reviewSoup, chrome))
+    review.page = pageNumber
     return review
 
 
 
-def getUsersReviews(soup, chrome, restaurantId, maxReviews):
-    reviewPageNumber = 0
+def getUsersReviews(soup, chrome, restaurantId, maxReviews, startReviewsPage):
+    reviewPageNumber = int(startReviewsPage)
+    logging.info(f"\tStart scraping reviews from page [{startReviewsPage}]")
     reviewsObjList = list()
+    isLastPage = False
     try:
+        if int(startReviewsPage):
+            _goToReviewPage(chrome, startReviewsPage)
+            time.sleep(1)
+
         _selectAllLanguages(chrome)
-        time.sleep(1.5)
+        time.sleep(1)
 
         while len(reviewsObjList) < int(maxReviews):
             reviewPageNumber += 1
             _expandReviews(chrome)
-            time.sleep(1.5)
+            time.sleep(1)
 
             expandedHtml = chrome.execute_script("return document.getElementsByTagName('html')[0].innerHTML")
             soup = BeautifulSoup(expandedHtml, 'html.parser')
@@ -169,14 +186,16 @@ def getUsersReviews(soup, chrome, restaurantId, maxReviews):
 
             for review in reviews:
                 try:
-                    newReview = _scrapeReview(review, chrome)
+                    newReview = _scrapeReview(review, chrome, reviewPageNumber)
                     newReview.restaurantId = restaurantId
                     reviewsObjList.append(newReview)
                 except:
                     pass
         
-            if _nextReviewPage(chrome, reviewPageNumber) == False:
-                break    
+            if isLastPage:
+                break
+            else:
+                isLastPage = _nextReviewPage(chrome)
     except:
         pass
     return reviewsObjList

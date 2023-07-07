@@ -6,6 +6,7 @@ class Restaurant:
         DEFAULT_VALUE = "--"
 
         self.name = DEFAULT_VALUE
+        self.id = DEFAULT_VALUE
         self.link = DEFAULT_VALUE
         self.stars = DEFAULT_VALUE
         self.reviews = DEFAULT_VALUE

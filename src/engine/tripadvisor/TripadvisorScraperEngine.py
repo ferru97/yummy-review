@@ -6,7 +6,7 @@ from src.engine.tripadvisor.TripadvisorReviewsScraper import *
 from pprint import pprint      
 import time            
 
-def scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxReviews, restaurantId):
+def scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxReviews, restaurantId, startReviewsPage, id):
     chrome.get(restaurantLink)
     time.sleep(2)
     html = chrome.execute_script("return document.getElementsByTagName('html')[0].innerHTML")
@@ -14,6 +14,7 @@ def scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxRevie
 
     restaurant = Restaurant()
     restaurant.name = getName(soup)
+    restaurant.id = id
     restaurant.link = restaurantLink
     restaurant.stars = getStars(soup)
     restaurant.reviews = getReviews(soup)
@@ -29,7 +30,7 @@ def scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxRevie
     restaurant.starsAtmosphere = getServiceStars(soup, "ambience")
     restaurant.meals = getMeals(soup)
     restaurant.michelinReview = getMichelinReview(soup, chrome)
-    reviews = getUsersReviews(soup, chrome, restaurantId, maxReviews)
+    reviews = getUsersReviews(soup, chrome, restaurantId, maxReviews, startReviewsPage)
     restaurant.numReviews = len(reviews)
     
     reviewsNumber = len(reviews)

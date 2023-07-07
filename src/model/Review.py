@@ -17,6 +17,7 @@ class Review:
         self.starsService = DEFAULT_VALUE
         self.starsFood = DEFAULT_VALUE
         self.reply = DEFAULT_VALUE
+        self.page = DEFAULT_VALUE
         self._author = DEFAULT_VALUE
 
     def setAuthor(self, reviewer: Author):

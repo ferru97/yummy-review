@@ -79,7 +79,7 @@ def getAuthorObj(soup, chrome):
     author = Author()
     try:
         _openAuthorTab(soup, chrome)
-        time.sleep(0.8)
+        time.sleep(0.5)
 
         expandedHtml = chrome.execute_script("return document.getElementsByTagName('html')[0].innerHTML")
         soup = BeautifulSoup(expandedHtml, 'html.parser')
