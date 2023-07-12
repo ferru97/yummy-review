@@ -31,7 +31,6 @@ def scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxRevie
     restaurant.meals = getMeals(soup)
     restaurant.michelinReview = getMichelinReview(soup, chrome)
     reviews = getUsersReviews(soup, chrome, restaurantId, maxReviews, startReviewsPage)
-    restaurant.numReviews = len(reviews)
     
     reviewsNumber = len(reviews)
     logging.info(f"\tFound {reviewsNumber} reviews for restaurant [{restaurantName}]")

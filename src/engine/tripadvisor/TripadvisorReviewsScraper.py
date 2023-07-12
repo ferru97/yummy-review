@@ -9,11 +9,20 @@ import logging
 DEFAULT_EMPTY = "--"
 TAGS_TEXT_SEPARATOR = " "
 
-def _expandReviews(chrome):
-    spans = chrome.find_elements(By.TAG_NAME, 'span')
-    spansMore = [span for span in spans if span.get_attribute("onclick") == "widgetEvCall('handlers.clickExpand',event,this);"]
-    if len(spansMore) > 0:
-        spansMore[0].click()
+def _expandReviews(chrome, retry=True):
+    try:
+        spans = chrome.find_elements(By.TAG_NAME, 'span')
+        spansMore = [span for span in spans if span.get_attribute("onclick") == "widgetEvCall('handlers.clickExpand',event,this);"]
+        if len(spansMore) > 0:
+            spansMore[0].click()
+    except Exception as e:
+        logging.error("Expand reviews exception, refreshing page...")
+        if retry:
+            chrome.refresh()
+            time.sleep(2)
+            _nextReviewPage(chrome, False)
+        else:
+            raise e      
 
 def _selectAllLanguages(chrome):  
     divs = chrome.find_elements(By.TAG_NAME, 'label')
@@ -21,22 +30,29 @@ def _selectAllLanguages(chrome):
     if len(allLanguageButton) > 0:
         allLanguageButton[0].click() 
 
-def _nextReviewPage(chrome):
-    nextButtonClass = "nav next ui_button primary"
-    nextButton = chrome.find_elements(By.XPATH, f"//a[@class='{nextButtonClass}']")[0]
-    lastPage = "disabled" in nextButton.get_attribute("class")
-    
-    chrome.execute_script("document.getElementsByClassName('nav next ui_button primary')[0].click()")
-    time.sleep(0.2)
-    chrome.get(chrome.current_url)
-    time.sleep(1.5)
-    
-    return lastPage  
+def _nextReviewPage(chrome, retry=True):
+    try:
+        oldUrl = chrome.current_url
+        chrome.execute_script("document.getElementsByClassName('nav next ui_button primary')[0].click()")
+        newUrl = chrome.current_url
+        time.sleep(0.5)
+        chrome.get(chrome.current_url)
+        time.sleep(1)
+        return oldUrl == newUrl
+    except Exception as e:
+        logging.error("Next page exception, refreshing page...")
+        logging.error(e)
+        if retry:
+            chrome.refresh()
+            time.sleep(2)
+            _nextReviewPage(chrome, False)
+        else:
+            raise e
 
 def _goToReviewPage(chrome, pageNum):
     while pageNum != 0:
         chrome.execute_script(f"document.querySelector(\"a[class='nav next ui_button primary']\").click()")
-        time.sleep(0.6)
+        time.sleep(0.7)
         pageNum -= 1
 
 
@@ -165,12 +181,12 @@ def getUsersReviews(soup, chrome, restaurantId, maxReviews, startReviewsPage):
     reviewsObjList = list()
     isLastPage = False
     try:
+        _selectAllLanguages(chrome)
+        time.sleep(1)
+
         if int(startReviewsPage):
             _goToReviewPage(chrome, startReviewsPage)
             time.sleep(1)
-
-        _selectAllLanguages(chrome)
-        time.sleep(1)
 
         while len(reviewsObjList) < int(maxReviews):
             reviewPageNumber += 1

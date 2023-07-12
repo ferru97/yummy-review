@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
-            "args": ["--file", "uk.csv", "--max-reviews", "50" ,"--source", "tripadvisor"],
+            "args": ["--file", "uk.csv", "--max-reviews", "5000" ,"--source", "tripadvisor"],
             "justMyCode": true
         }
     ]

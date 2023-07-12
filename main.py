@@ -60,13 +60,14 @@ def _saveRestaurantData(restaurantData, reviewsData, websiteName):
     reviewsData = [data.getCsvRecord() for data in reviewsData]
     restaurantOutputFile = os.path.join(OUTPUT_FILE_DIRECTORY, f"{websiteName}_restaurants.csv")
     reviewsOutputFile = os.path.join(OUTPUT_FILE_DIRECTORY, f"{websiteName}_restaurants_reviews.csv")
-    withHeader = not os.path.exists(restaurantOutputFile)
-
+    
+    withHeaderRestaurant = os.path.exists(restaurantOutputFile) == False
     outputRestaurantDf = pd.DataFrame(restaurantData)
-    outputRestaurantDf.to_csv(restaurantOutputFile, sep='\t', quotechar='"', encoding='utf-8', mode='a', header=withHeader)
+    outputRestaurantDf.to_csv(restaurantOutputFile, sep='\t', quotechar='"', encoding='utf-8', mode='a', header=withHeaderRestaurant)
 
+    withHeaderReview = os.path.exists(reviewsOutputFile) == False
     outputRviewsDf = pd.DataFrame(reviewsData)
-    outputRviewsDf.to_csv(reviewsOutputFile, sep='\t', quotechar='"', encoding='utf-8', mode='a', header=withHeader)  
+    outputRviewsDf.to_csv(reviewsOutputFile, sep='\t', quotechar='"', encoding='utf-8', mode='a', header=withHeaderReview)  
 
     
 
@@ -83,6 +84,7 @@ def run(filename, maxReviews, source):
     for index, restaurant in restaurantsDataset.iterrows():
         restaurantName =  restaurant[DF_RESTAURANT_NAME]
         restaurantLink = str(restaurant[DF_TRIPADVISOR_LINK])
+        startPage = restaurant[DF_TA_START_REVIEWS_PAGE]
 
         if restaurant[DF_PROCESSED] == "Y":
             logging.info(f"{index+1}/{datasetSize} Restaurant [{restaurantName}] already processed...")
@@ -94,11 +96,22 @@ def run(filename, maxReviews, source):
                 logging.info(f"{index+1}/{datasetSize} Scraping restaurant [{restaurantName}] from Tripadvisor...")
                 if source == TRIPADVISOR_SOURCE:
                     restaurantObj, reviewsList = scrapeTripadvisorRestaurant(chrome, restaurantName, restaurantLink, maxReviews , 
-                                                                             index, restaurant[DF_TA_START_REVIEWS_PAGE], restaurant[DF_ID])
-                    restaurantData.append(restaurantObj.getCsvRecord())
+                                                                             index, startPage, restaurant[DF_ID])
+                    if int(startPage) == 0:
+                        restaurantData.append(restaurantObj.getCsvRecord())
                     reviewsData = reviewsData + reviewsList
+                    
+                    if len(reviewsList) > 0:
+                        lastReviewPage = max([int(review.page) for review in reviewsList])
+                    else:
+                        lastReviewPage = 0    
+                        
+                    if lastReviewPage == 0 or lastReviewPage == int(startPage):
+                        restaurantsDataset.loc[index, DF_PROCESSED] = "Y"
+                    else:    
+                        restaurantsDataset.loc[index, DF_TA_START_REVIEWS_PAGE] = lastReviewPage
+
                     timeEnd = time.time()
-                    restaurantsDataset.loc[index, DF_PROCESSED] = "Y"
                     logging.info(f"\tFinished scraping restaurant [{restaurantName}] in {int(timeEnd-timeStart)} seconds")
 
                 if len(restaurantData)%10 == 0:

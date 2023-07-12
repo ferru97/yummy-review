@@ -22,7 +22,6 @@ class Restaurant:
         self.meals = DEFAULT_VALUE
         self.michelinReview = DEFAULT_VALUE
         self.michelinStars = DEFAULT_VALUE
-        self.numReviews = DEFAULT_VALUE
         self._reviewsText = list()
 
     def addReview(self, review: Review):
