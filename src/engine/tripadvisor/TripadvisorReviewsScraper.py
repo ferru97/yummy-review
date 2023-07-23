@@ -20,7 +20,7 @@ def _expandReviews(chrome, retry=True):
         if retry:
             chrome.refresh()
             time.sleep(2)
-            _nextReviewPage(chrome, False)
+            _expandReviews(chrome, False)
         else:
             raise e      
 
